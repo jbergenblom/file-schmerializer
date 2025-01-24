@@ -2,6 +2,7 @@ from collections import defaultdict
 import xml.etree.ElementTree as ET
 import json
 import re
+import hashlib
 
 def xml_to_json(file_path):
     tree = ET.parse(file_path)
@@ -422,7 +423,7 @@ def xml_to_json_14(file_path):
     
     return result_dict
 
-def xml_to_json_15(file_path):
+def xml_to_json_15_bkp(file_path):
     tree = ET.parse(file_path)
     root = tree.getroot()
     
@@ -471,6 +472,357 @@ def xml_to_json_15(file_path):
     result_dict = xml_to_dict(root)
     
     return result_dict
+
+def xml_to_json_15(file_path):
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+    
+    def xml_to_dict(element):
+        # If the element has no children, return its text content
+        if len(element) == 0:
+            return element.text
+
+        # If the element has children, create a dictionary
+        result = {}
+        for child in element:
+            child_result = xml_to_dict(child)
+            if child.tag not in result:
+                result[child.tag] = child_result
+            else:
+                if not isinstance(result[child.tag], list):
+                    result[child.tag] = [result[child.tag]]
+                result[child.tag].append(child_result)
+        
+        # If the dictionary has only one key and that key is a list, return the list
+        if len(result) == 1:
+            if isinstance(list(result.values())[0], list):
+                return list(result.values())[0]
+            else:
+                k = list(result.keys()).pop()
+                if re.search(r'item', k, re.IGNORECASE):
+                    return [result[list(result.keys())[0]]]
+        
+        return result
+
+    result_dict = xml_to_dict(root)
+    
+    return result_dict
+
+def xml_to_json_15_2(file_path, record_path="Body.*"):
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+    if record_path:
+        # Use record_path to dive down into one specific nested path of the structure and discard the others
+        # Sometimes the root tag is just some weird word, like MyTableSomethingName, which is then usually followed by a Body object. Sometimes the following object is called 'response' or something. 
+        # But using that dividing tag we should be able to return only the "body" and skip out on objects like headers and other metadata. 
+        # How is this done?
+        pass
+    
+    def xml_to_dict(element):
+        # If the element has no children, return its text content
+        if len(element) == 0:
+            return element.text
+
+        # If the element has children, create a dictionary
+        result = {}
+        for child in element:
+            child_result = xml_to_dict(child)
+            if child.tag not in result:
+                result[child.tag] = child_result
+            else:
+                if not isinstance(result[child.tag], list):
+                    result[child.tag] = [result[child.tag]]
+                result[child.tag].append(child_result)
+        
+        # If the dictionary has only one key and that key is a list, return the list
+        if len(result) == 1:
+            if isinstance(list(result.values())[0], list):
+                return list(result.values())[0]
+            else:
+                k = list(result.keys()).pop()
+                if re.search(r'item', k, re.IGNORECASE):
+                    return [result[list(result.keys())[0]]]    
+        
+        return result
+
+    result_dict = xml_to_dict(root)
+    
+    return result_dict
+
+def xml_to_json_15_3(file_path, record_path="Body.*"):
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+    
+    def get_elements_by_path(element, path):
+        if not path:
+            return [element]
+        
+        parts = path.split('.', 1)
+        current = parts[0]
+        remaining = parts[1] if len(parts) > 1 else ''
+        
+        if current == '*':
+            # Get all child elements
+            results = []
+            for child in element:
+                results.extend(get_elements_by_path(child, remaining))
+            return results
+        else:
+            # Find specific element
+            results = []
+            for child in element:
+                if child.tag == current:
+                    results.extend(get_elements_by_path(child, remaining))
+            return results
+
+    def xml_to_dict(element):
+        # If the element has no children, return its text content
+        if len(element) == 0:
+            return element.text
+
+        # If the element has children, create a dictionary
+        result = {}
+        for child in element:
+            child_result = xml_to_dict(child)
+            if child.tag not in result:
+                result[child.tag] = child_result
+            else:
+                if not isinstance(result[child.tag], list):
+                    result[child.tag] = [result[child.tag]]
+                result[child.tag].append(child_result)
+        
+        # If the dictionary has only one key and that key is a list, return the list
+        if len(result) == 1:
+            if isinstance(list(result.values())[0], list):
+                return list(result.values())[0]
+            else:
+                k = list(result.keys()).pop()
+                if re.search(r'item', k, re.IGNORECASE):
+                    return [result[list(result.keys())[0]]]    
+        
+        return result
+
+    if record_path:
+        # Get elements at the specified path
+        elements = get_elements_by_path(root, record_path)
+        if len(elements) == 1:
+            return xml_to_dict(elements[0])
+        return [xml_to_dict(elem) for elem in elements]
+    
+    return xml_to_dict(root)
+
+def xml_to_json_15_4(file_path, record_path=None, metadata_path=None):
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+    
+    def get_elements_by_path(element, path):
+        if not path:
+            return [element]
+        
+        parts = path.split('.', 1)
+        current = parts[0]
+        remaining = parts[1] if len(parts) > 1 else ''
+        
+        if current == '*':
+            results = []
+            for child in element:
+                results.extend(get_elements_by_path(child, remaining))
+            return results
+        else:
+            results = []
+            for child in element:
+                if child.tag == current:
+                    results.extend(get_elements_by_path(child, remaining))
+            return results
+
+    def xml_to_dict(element):
+        if len(element) == 0:
+            return element.text
+
+        result = {}
+        for child in element:
+            child_result = xml_to_dict(child)
+            if child.tag not in result:
+                result[child.tag] = child_result
+            else:
+                if not isinstance(result[child.tag], list):
+                    result[child.tag] = [result[child.tag]]
+                result[child.tag].append(child_result)
+        
+        if len(result) == 1:
+            if isinstance(list(result.values())[0], list):
+                return list(result.values())[0]
+            else:
+                k = list(result.keys()).pop()
+                if re.search(r'item', k, re.IGNORECASE):
+                    return [result[list(result.keys())[0]]]    
+        
+        return result
+
+    def flatten_dict(d, parent_key='', sep='_'):
+        items = []
+        for k, v in d.items():
+            new_key = f"{parent_key}{sep}{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(flatten_dict(v, new_key, sep=sep).items())
+            else:
+                items.append((new_key, v))
+        return dict(items)
+
+    # Get metadata if path is provided
+    metadata = {}
+    if metadata_path:
+        metadata_elements = get_elements_by_path(root, metadata_path)
+        if metadata_elements:
+            metadata = xml_to_dict(metadata_elements[0])
+            # Flatten metadata to avoid nested structures
+            metadata = flatten_dict(metadata)
+
+    # Get main records
+    if record_path:
+        elements = get_elements_by_path(root, record_path)
+        records = []
+        
+        if len(elements) == 1:
+            result = xml_to_dict(elements[0])
+            # Handle case where result is a list or needs to be converted to a list
+            if not isinstance(result, list):
+                if isinstance(result, dict) and any(isinstance(v, list) for v in result.values()):
+                    # Extract the list from the dictionary
+                    for v in result.values():
+                        if isinstance(v, list):
+                            result = v
+                            break
+                else:
+                    result = [result]
+        else:
+            result = [xml_to_dict(elem) for elem in elements]
+
+        # Ensure we have a list of records
+        if isinstance(result, list):
+            records = result
+        else:
+            records = [result]
+
+        # Add metadata to each record if it exists
+        if metadata:
+            for record in records:
+                if isinstance(record, dict):
+                    record.update(metadata)
+
+        return records
+    
+    return xml_to_dict(root)
+
+def xml_to_json_15_5(file_path, record_path="Body.*", metadata_path=None, flatten_metadata=True):
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+    
+    def get_elements_by_path(element, path):
+        if not path:
+            return [element]
+        
+        parts = path.split('.', 1)
+        current = parts[0]
+        remaining = parts[1] if len(parts) > 1 else ''
+        
+        if current == '*':
+            results = []
+            for child in element:
+                results.extend(get_elements_by_path(child, remaining))
+            return results
+        else:
+            results = []
+            for child in element:
+                if child.tag == current:
+                    results.extend(get_elements_by_path(child, remaining))
+            return results
+
+    def xml_to_dict(element):
+        if len(element) == 0:
+            return element.text
+
+        result = {}
+        for child in element:
+            child_result = xml_to_dict(child)
+            if child.tag not in result:
+                result[child.tag] = child_result
+            else:
+                if not isinstance(result[child.tag], list):
+                    result[child.tag] = [result[child.tag]]
+                result[child.tag].append(child_result)
+        
+        if len(result) == 1:
+            if isinstance(list(result.values())[0], list):
+                return list(result.values())[0]
+            else:
+                k = list(result.keys()).pop()
+                if re.search(r'item', k, re.IGNORECASE):
+                    return [result[list(result.keys())[0]]]    
+        
+        return result
+
+    def flatten_dict(d, parent_key='', sep='_'):
+        items = []
+        for k, v in d.items():
+            new_key = f"{parent_key}{sep}{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(flatten_dict(v, new_key, sep=sep).items())
+            else:
+                items.append((new_key, v))
+        return dict(items)
+
+    # Get metadata if path is provided
+    metadata = {}
+    metadata_tag = None
+    if metadata_path:
+        metadata_elements = get_elements_by_path(root, metadata_path)
+        if metadata_elements:
+            metadata_tag = metadata_elements[0].tag
+            metadata = xml_to_dict(metadata_elements[0])
+            if flatten_metadata:
+                # Flatten metadata to avoid nested structures
+                metadata = flatten_dict(metadata)
+
+    # Get main records
+    if record_path:
+        elements = get_elements_by_path(root, record_path)
+        records = []
+        
+        if len(elements) == 1:
+            result = xml_to_dict(elements[0])
+            # Handle case where result is a list or needs to be converted to a list
+            if not isinstance(result, list):
+                if isinstance(result, dict) and any(isinstance(v, list) for v in result.values()):
+                    # Extract the list from the dictionary
+                    for v in result.values():
+                        if isinstance(v, list):
+                            result = v
+                            break
+                else:
+                    result = [result]
+        else:
+            result = [xml_to_dict(elem) for elem in elements]
+
+        # Ensure we have a list of records
+        if isinstance(result, list):
+            records = result
+        else:
+            records = [result]
+
+        # Add metadata to each record if it exists
+        if metadata:
+            for record in records:
+                if isinstance(record, dict):
+                    if flatten_metadata:
+                        record.update(metadata)
+                    else:
+                        record[metadata_tag] = metadata
+
+        return records
+    
+    return xml_to_dict(root)
+
 
 def xml_to_json_16(file_path):
     tree = ET.parse(file_path)
@@ -557,3 +909,71 @@ def xml_to_json_17(file_path):
     
     # Convert the parsed records to JSON-like data
     return parsed_records
+
+def xml_to_json_18(file_path):
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+    
+    def generate_surrogate_key(element):
+        """
+        Generate a surrogate key by hashing the string representation 
+        of all children's content.
+        """
+        # Convert element to a hashable string representation
+        def element_to_str(el):
+            if len(el) == 0:
+                return str(el.text or '')
+            
+            # For elements with children, concatenate their string representations
+            return ''.join(element_to_str(child) for child in el)
+        
+        # Hash the string representation
+        hash_input = element_to_str(element)
+        return hashlib.md5(hash_input.encode()).hexdigest()
+    
+    def xml_to_dict(element, parent_key=None):
+        # If the element has no children, return its text content
+        if len(element) == 0:
+            return element.text
+
+        # If the element has children, create a dictionary
+        result = {}
+        
+        # Generate surrogate primary key (XPK)
+        result['XPK'] = generate_surrogate_key(element)
+        
+        # Add foreign key if there's a parent key
+        if parent_key:
+            result['FK'] = parent_key
+        
+        # Process children
+        child_dict = {}
+        for child in element:
+            child_result = xml_to_dict(child, result['XPK'])
+            
+            if child.tag not in child_dict:
+                child_dict[child.tag] = child_result
+            else:
+                # Handle multiple children with the same tag
+                if not isinstance(child_dict[child.tag], list):
+                    child_dict[child.tag] = [child_dict[child.tag]]
+                child_dict[child.tag].append(child_result)
+        
+        # Merge child dictionary with result
+        result.update(child_dict)
+        
+        # If the dictionary has only one key and that key is a list, return the list
+        if len(result) == 1:
+            if isinstance(list(result.values())[0], list):
+                return list(result.values())[0]
+            else:
+                k = list(result.keys()).pop()
+                if re.search(r'item', k, re.IGNORECASE):
+                    return [result[list(result.keys())[0]]]    
+        
+        return result
+
+    # Convert XML to dictionary with keys
+    result_dict = xml_to_dict(root)
+    
+    return result_dict
